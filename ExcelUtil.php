@@ -1,7 +1,9 @@
 <?php
-    require 'C:\Users\OCEAN\vendor\autoload.php';
+    require 'Dependencies/vendor/autoload.php';
     use PhpOffice\PhpSpreadsheet\IOFactory;
     use PhpOffice\PhpSpreadsheet\Spreadsheet;
+
+    $header = array('Dummy Company', 'Dummy Report Header', 'Username');
 
     $connection = mysqli_connect('localhost', 'root', 'password123', 'test');
 
@@ -10,19 +12,20 @@
     }else{
                
         $spreadsheet = new Spreadsheet();
-        $companyName = "Dummy Company";
-        $reportHeader= "Dummy Report Header";
         $userinfo = array();
         $tableinfo = array();
-        $query2 = "DESC demo";
-        $result2= mysqli_query($connection, $query2);
-        if(!$result2){
+
+        //Query to get column names
+        $query = "DESC demo";
+        $result= mysqli_query($connection, $query);
+        if(!$result){
             die("Query Failed");
         }
-        while($row=mysqli_fetch_row($result2)){
+        while($row=mysqli_fetch_row($result)){
             $tableinfo[] = $row[0];
         }
-
+        
+        //Query to get table data
         $query = "SELECT * FROM demo";
         $result = mysqli_query($connection, $query);
         if(!$result){
@@ -33,6 +36,17 @@
         }
         
         //Writing Data to Excel Sheet
+
+        //Metadata
+        $spreadsheet->getProperties()
+        ->setCreator($header[2])
+        ->setLastModifiedBy($header[2])
+        ->setTitle($header[1])
+        ->setSubject($header[1])
+        ->setDescription($header[1])
+        ->setCategory($header[1]);
+
+        //Column Headers
         $spreadsheet->setActiveSheetIndex(0)
         ->fromArray(
             $tableinfo,
@@ -40,6 +54,7 @@
             'A5'
         );
 
+        //Table data
         $spreadsheet->setActiveSheetIndex(0)
         ->fromArray(
             $userinfo,
@@ -54,9 +69,6 @@
         $highestColumn = $spreadsheet->getActiveSheet()
         ->getHighestColumn();
 
-        //Renaming Worksheet
-        $spreadsheet->getActiveSheet()->setTitle('Simple');
-
         // Merge Cells A1:C1
         
         if($highestColumn=='A'||$highestColumn=='B'||$highestColumn=='C'){
@@ -69,7 +81,7 @@
         
         //Rich Text for Company Header
         $company = new \PhpOffice\PhpSpreadsheet\RichText\RichText();
-        $payable = $company->createTextRun($companyName);
+        $payable = $company->createTextRun($header[0]);
         $payable->getFont()->setBold(true)
         ->setColor( new \PhpOffice\PhpSpreadsheet\Style\Color( \PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLACK ));
 
@@ -81,7 +93,7 @@
 
         //Rich Text For Report Header
         $report = new \PhpOffice\PhpSpreadsheet\RichText\RichText();
-        $payable = $report->createTextRun($reportHeader);
+        $payable = $report->createTextRun($header[1]);
         $payable->getFont()->setBold(true)
         ->setColor( new \PhpOffice\PhpSpreadsheet\Style\Color( \PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLACK ));
 
@@ -91,7 +103,8 @@
         ->getStartColor()->setARGB('FFD1E8C0');
 
         
-        $spreadsheet->getActiveSheet()->getStyle('A5:'.$highestColumn.'5')->getFill()
+        $spreadsheet->getActiveSheet()->getStyle('A5:'.$highestColumn.'5')
+        ->getFill()
         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
         ->getStartColor()->setARGB('FF8AB5DF');
         
@@ -110,21 +123,22 @@
         for($i='A'; $i<=$highestColumn; $i++){
             $spreadsheet->getActiveSheet()->getColumnDimension($i)->setAutoSize(true);
         }
-        
 
+        //Renaming Worksheet
+        $spreadsheet->getActiveSheet()->setTitle('Worksheet');
 
         //Header and Footer
         $spreadsheet->getActiveSheet()->getHeaderFooter()
-        ->setOddHeader('&L&HList of Users &R&D');
+        ->setOddHeader('&L&H'. $spreadsheet->getProperties()->getTitle() . ' &R&D');
         $spreadsheet->getActiveSheet()->getHeaderFooter()
-        ->setOddFooter('&L&B' . $spreadsheet->getProperties()->getTitle() . '&RPage &P of &N');
+        ->setOddFooter('&RPage &P of &N');
 
         // Set active sheet index to the first sheet, so Excel opens this as the first sheet
         $spreadsheet->setActiveSheetIndex(0);
 
         // Redirect output to a client’s web browser (Xlsx)
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="Sample.xlsx"');
+        header('Content-Disposition: attachment;filename="Report.xlsx"');
         header('Cache-Control: max-age=0');
         // If you're serving to IE 9, then the following may be needed
         header('Cache-Control: max-age=1');
@@ -137,8 +151,6 @@
 
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->save('php://output');
-        exit;
-        
+        exit;   
     }
-
 ?>
